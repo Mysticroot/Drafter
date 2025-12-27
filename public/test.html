@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Anime Draft Test</title>
+  </head>
+  <body>
+    <h1>Anime Draft Test</h1>
+
+    <button id="create">Create Room</button>
+    <input id="roomIdInput" placeholder="Room ID to join" />
+    <button id="join">Join Room</button>
+
+    <hr />
+    <button id="draw">Draw Card (current player)</button>
+
+    <pre id="log"></pre>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+      const logEl = document.getElementById("log");
+      function log(msg) {
+        logEl.textContent += msg + "\n";
+      }
+
+      const socket = io();
+
+      socket.on("connect", () => log("Connected: " + socket.id));
+      socket.on("welcome", (msg) => log("WELCOME: " + msg));
+      socket.on("room_created", (data) => {
+        log("Room created: " + data.roomId);
+        log(JSON.stringify(data.room, null, 2));
+        // auto-fill room id box for convenience
+        document.getElementById("roomIdInput").value = data.roomId;
+      });
+      socket.on("room_updated", (room) => {
+        log("ROOM UPDATED:");
+        log(JSON.stringify(room, null, 2));
+      });
+      socket.on("game_over", (data) => {
+        log("GAME OVER:");
+        log(JSON.stringify(data, null, 2));
+      });
+      socket.on("invalid_action", ({ message }) => log("ERROR: " + message));
+
+      document
+        .getElementById("create")
+        .addEventListener("click", () => {
+          socket.emit("create_room", { name: "Player " + socket.id });
+        });
+
+      document
+        .getElementById("join")
+        .addEventListener("click", () => {
+          const roomId = document.getElementById("roomIdInput").value.trim();
+          socket.emit("join_room", { roomId, name: "Player " + socket.id });
+        });
+
+      document.getElementById("draw").addEventListener("click", () => {
+        const roomId = document.getElementById("roomIdInput").value.trim();
+        socket.emit("draw_card", { roomId });
+      });
+    </script>
+  </body>
+</html>

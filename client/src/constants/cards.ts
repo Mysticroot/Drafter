@@ -1,5 +1,5 @@
-// src/game/cards.ts
-import { Card } from "./types";
+// src/constants/cards.ts
+import { Card } from "../types/game";
 
 export const ALL_CARDS: Card[] = [
   {
@@ -24,6 +24,30 @@ export const ALL_CARDS: Card[] = [
       tank: 90,
       healer: 5,
       support: 60,
+    },
+  },
+  {
+    id: "nami",
+    name: "Nami",
+    anime: "one_piece",
+    stats: {
+      captain: 65,
+      viceCaptain: 70,
+      tank: 55,
+      healer: 75,
+      support: 85,
+    },
+  },
+  {
+    id: "usopp",
+    name: "Usopp",
+    anime: "one_piece",
+    stats: {
+      captain: 55,
+      viceCaptain: 60,
+      tank: 50,
+      healer: 65,
+      support: 88,
     },
   },
   {
@@ -63,66 +87,6 @@ export const ALL_CARDS: Card[] = [
     },
   },
   {
-    id: "ichigo",
-    name: "Ichigo Kurosaki",
-    anime: "bleach",
-    stats: {
-      captain: 92,
-      viceCaptain: 80,
-      tank: 85,
-      healer: 5,
-      support: 75,
-    },
-  },
-  {
-    id: "rukia",
-    name: "Rukia Kuchiki",
-    anime: "bleach",
-    stats: {
-      captain: 70,
-      viceCaptain: 85,
-      tank: 65,
-      healer: 60,
-      support: 80,
-    },
-  },
-  {
-    id: "byakuya",
-    name: "Byakuya Kuchiki",
-    anime: "bleach",
-    stats: {
-      captain: 90,
-      viceCaptain: 88,
-      tank: 80,
-      healer: 10,
-      support: 75,
-    },
-  },
-  {
-    id: "nami",
-    name: "Nami",
-    anime: "one_piece",
-    stats: {
-      captain: 65,
-      viceCaptain: 70,
-      tank: 55,
-      healer: 75,
-      support: 85,
-    },
-  },
-  {
-    id: "usopp",
-    name: "Usopp",
-    anime: "one_piece",
-    stats: {
-      captain: 55,
-      viceCaptain: 60,
-      tank: 50,
-      healer: 65,
-      support: 88,
-    },
-  },
-  {
     id: "kakashi",
     name: "Kakashi Hatake",
     anime: "naruto",
@@ -156,6 +120,42 @@ export const ALL_CARDS: Card[] = [
       tank: 95,
       healer: 5,
       support: 70,
+    },
+  },
+  {
+    id: "ichigo",
+    name: "Ichigo Kurosaki",
+    anime: "bleach",
+    stats: {
+      captain: 92,
+      viceCaptain: 80,
+      tank: 85,
+      healer: 5,
+      support: 75,
+    },
+  },
+  {
+    id: "rukia",
+    name: "Rukia Kuchiki",
+    anime: "bleach",
+    stats: {
+      captain: 70,
+      viceCaptain: 85,
+      tank: 65,
+      healer: 60,
+      support: 80,
+    },
+  },
+  {
+    id: "byakuya",
+    name: "Byakuya Kuchiki",
+    anime: "bleach",
+    stats: {
+      captain: 90,
+      viceCaptain: 88,
+      tank: 80,
+      healer: 10,
+      support: 75,
     },
   },
   {

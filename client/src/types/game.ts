@@ -1,4 +1,5 @@
-// src/game/types.ts
+// src/types/game.ts
+
 export type Anime = "one_piece" | "naruto" | "bleach";
 
 export type Role = "captain" | "viceCaptain" | "tank" | "healer" | "support";
@@ -7,30 +8,28 @@ export interface Card {
   id: string;
   name: string;
   anime: Anime;
-  stats: Record<Role, number>; // e.g. { captain: 90, tank: 70, ... }
+  stats: Record<Role, number>;
 }
 
 export interface TeamSlot {
   role: Role;
-  cardId: string | null; // which card is in this slot
+  cardId: string | null;
 }
 
 export interface PlayerState {
-  id: string; // socket.id
+  id: string;
   name: string;
   team: TeamSlot[];
-  skipUsed: boolean; // true once player has used skip
-  draftingComplete: boolean; // true when all slots filled
-  swapUsed: boolean; // true once player has used swap (before finalization)
+  skipUsed: boolean;
 }
 
-export type GamePhase = "waiting" | "draft" | "swap" | "finished";
+export type GamePhase = "waiting" | "draft" | "finished";
 
 export interface GameRoom {
   id: string;
   players: PlayerState[];
   deck: Card[];
-  currentPlayerIndex: number; // 0 or 1
+  currentPlayerIndex: number;
   currentCard: Card | null;
   phase: GamePhase;
   winnerId?: string;

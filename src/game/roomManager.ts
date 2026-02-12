@@ -26,7 +26,7 @@ function shuffle<T>(array: T[]): T[] {
 
 function allTeamsFull(room: GameRoom): boolean {
   return room.players.every((p) =>
-    p.team.every((slot) => slot.cardId !== null)
+    p.team.every((slot) => slot.cardId !== null),
   );
 }
 
@@ -63,6 +63,8 @@ export function createRoom(socketId: string, name: string): GameRoom {
     name,
     team: defaultTeam(),
     skipUsed: false,
+    draftingComplete: false,
+    swapUsed: false,
   };
 
   const room: GameRoom = {
@@ -81,7 +83,7 @@ export function createRoom(socketId: string, name: string): GameRoom {
 export function joinRoom(
   roomId: string,
   socketId: string,
-  name: string
+  name: string,
 ): { room?: GameRoom; error?: string } {
   const room = rooms.get(roomId);
   if (!room) return { error: "Room not found" };
@@ -93,6 +95,8 @@ export function joinRoom(
     name,
     team: defaultTeam(),
     skipUsed: false,
+    draftingComplete: false,
+    swapUsed: false,
   };
 
   room.players.push(player);
@@ -105,7 +109,7 @@ export function joinRoom(
 
 export function requestDrawCard(
   roomId: string,
-  socketId: string
+  socketId: string,
 ): { room?: GameRoom; error?: string } {
   const room = rooms.get(roomId);
   if (!room) return { error: "Room not found" };
@@ -114,6 +118,10 @@ export function requestDrawCard(
   const currentPlayer = room.players[room.currentPlayerIndex];
   if (currentPlayer.id !== socketId) {
     return { error: "Not your turn" };
+  }
+
+  if (currentPlayer.draftingComplete) {
+    return { error: "Your team is complete, waiting for opponent" };
   }
 
   if (room.currentCard) {
@@ -131,7 +139,7 @@ export function requestDrawCard(
 export function handleAssignCard(
   roomId: string,
   socketId: string,
-  slotRole: Role
+  slotRole: Role,
 ): { room?: GameRoom; error?: string; gameFinished?: boolean } {
   const room = rooms.get(roomId);
   if (!room) return { error: "Room not found" };
@@ -154,8 +162,23 @@ export function handleAssignCard(
   slot.cardId = room.currentCard.id;
   room.currentCard = null;
 
-  // check if draft finished
-  if (allTeamsFull(room)) {
+  // check if this player's team is full
+  const playerTeamFull = currentPlayer.team.every((s) => s.cardId !== null);
+  if (playerTeamFull) {
+    currentPlayer.draftingComplete = true;
+  }
+
+  // check if both teams are full
+  const bothDone = room.players.every((p) => p.draftingComplete);
+  if (bothDone) {
+    // transition to swap phase if any player hasn't used skip
+    const someCanSwap = room.players.some((p) => !p.skipUsed && !p.swapUsed);
+    if (someCanSwap) {
+      room.phase = "swap";
+      return { room };
+    }
+
+    // otherwise finalize immediately
     room.phase = "finished";
     const scores = calculateScores(room);
     room.scores = scores;
@@ -171,7 +194,7 @@ export function handleAssignCard(
     return { room, gameFinished: true };
   }
 
-  // switch turn; NEXT player will manually call draw_card
+  // switch turn to other player (ALWAYS after assigning, unless game is finished)
   room.currentPlayerIndex = 1 - room.currentPlayerIndex;
 
   return { room };
@@ -179,7 +202,7 @@ export function handleAssignCard(
 
 export function handleSkipCard(
   roomId: string,
-  socketId: string
+  socketId: string,
 ): { room?: GameRoom; error?: string; gameFinished?: boolean } {
   const room = rooms.get(roomId);
   if (!room) return { error: "Room not found" };
@@ -196,10 +219,24 @@ export function handleSkipCard(
     return { error: "No card drawn" };
   }
 
+  // Mark skip as used, discard card
   currentPlayer.skipUsed = true;
   room.currentCard = null;
 
-  if (allTeamsFull(room)) {
+  // DO NOT switch turn - same player draws again
+  // (turn only switches after assigning a card)
+
+  // Check if both teams are full
+  const bothDone = room.players.every((p) => p.draftingComplete);
+  if (bothDone) {
+    // transition to swap phase if any player hasn't used skip
+    const someCanSwap = room.players.some((p) => !p.skipUsed && !p.swapUsed);
+    if (someCanSwap) {
+      room.phase = "swap";
+      return { room };
+    }
+
+    // otherwise finalize immediately
     room.phase = "finished";
     const scores = calculateScores(room);
     room.scores = scores;
@@ -215,7 +252,102 @@ export function handleSkipCard(
     return { room, gameFinished: true };
   }
 
-  room.currentPlayerIndex = 1 - room.currentPlayerIndex;
+  return { room };
+}
+
+export function handleSwap(
+  roomId: string,
+  socketId: string,
+  role1: Role,
+  role2: Role,
+): { room?: GameRoom; error?: string; gameFinished?: boolean } {
+  const room = rooms.get(roomId);
+  if (!room) return { error: "Room not found" };
+  if (room.phase !== "swap") return { error: "Not in swap phase" };
+
+  const player = room.players.find((p) => p.id === socketId);
+  if (!player) return { error: "Player not found" };
+
+  // Can only swap if skip was NOT used
+  if (player.skipUsed) {
+    return { error: "Cannot swap because you used skip in draft" };
+  }
+
+  // Can only swap once
+  if (player.swapUsed) {
+    return { error: "Swap already used" };
+  }
+
+  if (role1 === role2) return { error: "Cannot swap same role" };
+
+  const slot1 = player.team.find((s) => s.role === role1);
+  const slot2 = player.team.find((s) => s.role === role2);
+
+  if (!slot1 || !slot2) return { error: "Invalid roles" };
+  if (!slot1.cardId || !slot2.cardId)
+    return { error: "Both slots must be filled" };
+
+  // swap the card IDs
+  [slot1.cardId, slot2.cardId] = [slot2.cardId, slot1.cardId];
+  player.swapUsed = true;
+
+  // check if both players are done swapping (or can't swap)
+  const bothSwappedOrCantSwap = room.players.every(
+    (p) => p.swapUsed || p.skipUsed,
+  );
+  if (bothSwappedOrCantSwap) {
+    room.phase = "finished";
+    const scores = calculateScores(room);
+    room.scores = scores;
+
+    const [p1, p2] = room.players;
+    const score1 = scores[p1.id] || 0;
+    const score2 = scores[p2.id] || 0;
+
+    if (score1 > score2) room.winnerId = p1.id;
+    else if (score2 > score1) room.winnerId = p2.id;
+    else room.winnerId = undefined;
+
+    return { room, gameFinished: true };
+  }
+
+  return { room };
+}
+
+export function handleSkipSwap(
+  roomId: string,
+  socketId: string,
+): { room?: GameRoom; error?: string; gameFinished?: boolean } {
+  const room = rooms.get(roomId);
+  if (!room) return { error: "Room not found" };
+  if (room.phase !== "swap") return { error: "Not in swap phase" };
+
+  const player = room.players.find((p) => p.id === socketId);
+  if (!player) return { error: "Player not found" };
+  if (player.swapUsed) return { error: "Already made swap decision" };
+
+  // player chose to skip swap
+  player.swapUsed = true;
+
+  // check if both players are done swapping (or can't swap)
+  const bothSwappedOrCantSwap = room.players.every(
+    (p) => p.swapUsed || p.skipUsed,
+  );
+  if (bothSwappedOrCantSwap) {
+    room.phase = "finished";
+    const scores = calculateScores(room);
+    room.scores = scores;
+
+    const [p1, p2] = room.players;
+    const score1 = scores[p1.id] || 0;
+    const score2 = scores[p2.id] || 0;
+
+    if (score1 > score2) room.winnerId = p1.id;
+    else if (score2 > score1) room.winnerId = p2.id;
+    else room.winnerId = undefined;
+
+    return { room, gameFinished: true };
+  }
 
   return { room };
 }
